@@ -123,13 +123,64 @@ exports.getAllReservations = getAllReservations;
  */
 
  const getAllProperties = (options, limit = 10) => {
-  return pool
-    .query(`SELECT * FROM properties LIMIT $1`, [limit])
-    .then((result) => result.rows)
-    .catch((err) => {
-      console.log(err.message);
-    });
+  const queryParams =[];
+  let queryString =`SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString +=`WHERE city LIKE $${queryParams.length}`;
+  }
+  
+  if (options.owner_id){
+    queryParams.push(`${options.owner_id}`)
+    queryString +=`AND owner_id = $${queryParams.length}`;
+  }
+
+  //If mnimum_price_per_night entered as option add to params array
+  if (options.minimum_price_per_night){
+    queryParams.push(options.minimum_price_per_night*100)
+    queryString += `AND cost_per_night >= $${queryParams.length}`;
+  }
+
+    //If maximum_price_per_night entered as option add to params array
+  if (options.maximum_price_per_night){
+    queryParams.push(options.maximum_price_per_night*100)
+    queryString += `AND cost_per_night <= $${queryParams.length}`;
+  }
+  //If minimum rating is passed in only retunr properties with rating equal or higher
+  if (options.minimum_rating){
+    queryParams.push(options.minimum_rating)
+    queryString += `AND rating >= $${queryParams.length}`;
+  }
+
+
+  queryParams.push(limit);
+  queryString +=`GROUP BY properties.id
+  ORDER BY cost_per_night
+  LIMIT $${queryParams.length};`;
+
+  console.log(queryString, queryParams);
+
+  return pool.query(queryString, queryParams)
+  .then ((result)=>result.rows)
 };
+
+  //   return pool
+//     .query(`SELECT properties.*, avg(property_reviews.rating) as avg_rating
+//     FROM properties
+//     JOIN property_reviews ON properties.id = property_id
+//     WHERE city LIKE '%ancouv%'
+//     GROUP BY properties.id
+//     HAVING avg(property_reviews.rating) >=4
+//     ORDER BY cost_per_night
+//     LIMIT $2;`, [options, limit])
+//     .then((result) => result.rows)
+//     .catch((err) => {
+//       console.log(err.message);
+//     });
+// };
 exports.getAllProperties = getAllProperties;
 
 
