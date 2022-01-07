@@ -123,46 +123,52 @@ exports.getAllReservations = getAllReservations;
  */
 
  const getAllProperties = (options, limit = 10) => {
+   //1 - Setup an array to hold any parameters that may be available for the query.
   const queryParams =[];
+  //2 - Start the query with all information that comes before the WHERE clause.
   let queryString =`SELECT properties.*, avg(property_reviews.rating) as average_rating
   FROM properties
   JOIN property_reviews ON properties.id = property_id
   `;
+  // 3 - Check if options are being entered if so add them to the query
   if (options.city) {
     queryParams.push(`%${options.city}%`);
-    queryString +=`WHERE city LIKE $${queryParams.length}`;
+    queryString +=`WHERE city LIKE $${queryParams.length}\n`;
   }
   
   if (options.owner_id){
     queryParams.push(`${options.owner_id}`)
-    queryString +=`AND owner_id = $${queryParams.length}`;
+    queryString +=`AND owner_id = $${queryParams.length}\n`;
   }
 
   //If mnimum_price_per_night entered as option add to params array
   if (options.minimum_price_per_night){
     queryParams.push(options.minimum_price_per_night*100)
-    queryString += `AND cost_per_night >= $${queryParams.length}`;
+    queryString += `AND cost_per_night >= $${queryParams.length}\n`;
   }
 
     //If maximum_price_per_night entered as option add to params array
   if (options.maximum_price_per_night){
     queryParams.push(options.maximum_price_per_night*100)
-    queryString += `AND cost_per_night <= $${queryParams.length}`;
+    queryString += `AND cost_per_night <= $${queryParams.length}\n`;
   }
+  queryString += `GROUP BY properties.id\n`;
+
   //If minimum rating is passed in only retunr properties with rating equal or higher
   if (options.minimum_rating){
     queryParams.push(options.minimum_rating)
-    queryString += `AND rating >= $${queryParams.length}`;
+    queryString += `HAVING avg(rating) >= $${queryParams.length}\n`;
   }
 
-
+  //4 -Add any query that comes after the WHERE statements
   queryParams.push(limit);
-  queryString +=`GROUP BY properties.id
+  queryString +=`
   ORDER BY cost_per_night
   LIMIT $${queryParams.length};`;
 
+  //5 - Console log everything just to make sure we've done it right.
   console.log(queryString, queryParams);
-
+  //6 - Execute the query
   return pool.query(queryString, queryParams)
   .then ((result)=>result.rows)
 };
